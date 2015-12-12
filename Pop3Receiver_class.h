@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <fstream>
 
 #ifndef for_include_winsock2_h_
 #define for_include_winsock2_h_

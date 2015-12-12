@@ -52,27 +52,37 @@ int Pop3Receiver::get_subject_quantity()
 
 void Pop3Receiver::get_subject(char * subject, int index)
 {
+
 	std::string buffer;
 	download_mail(index, buffer);
 
-	size_t subject_beg = buffer.find_first_of("Subject: ") + strlen("Subject: ");
-	size_t subject_end = buffer.find_first_of("\r\n", subject_beg);
-	std::string subject_group = buffer.substr(subject_beg, subject_end - subject_beg);
+	std::string subject_beg = strstr(buffer.c_str(), "Subject: ") + strlen("Subject: ");
+	size_t subject_end = reinterpret_cast<size_t>(strstr(subject_beg.c_str(), "\r\n"));
+	size_t subject_group_len = subject_end - reinterpret_cast<size_t>(subject_beg.c_str());
+	std::string subject_group = subject_beg.substr(0, subject_group_len);
 	if (subject_group.substr(0, 2) == "=?")
 	{
 		// this is base64 encoded
 		size_t first_quest = subject_group.find_first_of("?", 2);
-		size_t second_quest = subject_group.find_first_of("?", first_quest + 1);
-		std::string subject_with_quest = subject_group.substr(second_quest + 1);
-		std::string subject_only = subject_with_quest.substr(0, subject_with_quest.length() - 2);
+		std::string subject_with_quest2 = strstr(subject_group.c_str() + 2, "?");
+		std::string subject_only = strstr(subject_with_quest2.c_str() + 1, "?") + 1;
 		Base64Coder decoder;
 		decoder.Decode(subject_only.c_str());
 		strcpy(subject, decoder.DecodedMessage());
 	}
 	else
 	{
+		/*
+		std::ofstream ofs;
+		ofs.open("log.txt", std::ios::trunc);
+		ofs << "received:\r\n" << buffer<<"\r\n\r\n";
+		ofs << "subject_beg:\r\n"<<subject_beg << "\r\n\r\n";
+		ofs << "subject_group:\r\n" << subject_group << "\r\n\r\n";
+		ofs.close();
+		//*/
 		strcpy(subject, subject_group.c_str());
 	}
+
 }
 
 void Pop3Receiver::get_content(char * content, int index)
@@ -80,13 +90,30 @@ void Pop3Receiver::get_content(char * content, int index)
 	std::string buffer;
 	download_mail(index, buffer);
 
-	size_t near_html = buffer.find_last_of("text/html;");
-	size_t label64 = buffer.find_first_of("Content-Transfer-Encoding: base64", near_html);
-	size_t beg_html = buffer.find_first_of("\r\n\r\n", near_html);
-	std::string html_with_trash = buffer.substr(beg_html + 4);
-	size_t trash = html_with_trash.find_first_of("\r\n--");
-	std::string html = html_with_trash.substr(0, trash);
-	if (label64 != std::string::npos)
+	std::ofstream ofs;
+	ofs.open("log.txt", std::ios::trunc);
+	ofs << buffer;
+
+	/*
+	const char * near_html_p = buffer.c_str();
+	while (true)
+	{
+		const char * backup = near_html_p;
+		near_html_p = strstr(near_html_p, "text/html;") + strlen("text/html;");
+		if (near_html_p == NULL)
+		{
+			near_html_p = backup;
+			break;
+		}
+	}
+	std::string near_html = near_html_p;
+
+	bool is_64 = strstr(near_html.c_str(), "Content-Transfer-Encoding: base64") != NULL;
+	std::string html_with_trash = strstr(near_html.c_str(), "\r\n\r\n") + strlen("\r\n\r\n");
+	const char * trash = strstr(html_with_trash.c_str(), "\r\n--");
+	int html_len = trash - html_with_trash.c_str();
+	std::string html = html_with_trash.substr(0, html_len);
+	if (is_64 == true)
 	{
 		// this is base64 encoded
 		Base64Coder decoder;
@@ -97,6 +124,9 @@ void Pop3Receiver::get_content(char * content, int index)
 	{
 		strcpy(content, html.c_str());
 	}
+	//*/
+
+	strcpy(content, buffer.c_str());
 }
 
 
